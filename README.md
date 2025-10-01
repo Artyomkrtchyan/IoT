@@ -1,5 +1,5 @@
 # IoT
-Air Monitoring System 🌬️
+
 📘 About the Project
 This repository was created as part of a university project at UFAR (Université Française en Arménie) in collaboration with 42 Yerevan / TUMO Labs.
 
