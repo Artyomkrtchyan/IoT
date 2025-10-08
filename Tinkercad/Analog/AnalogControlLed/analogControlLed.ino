@@ -1,4 +1,4 @@
-#define led_pin A1
+#define led_pin 35
 
 int brightness = 0;
 int step = 5;
