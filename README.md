@@ -22,7 +22,7 @@ The goal is to design a working IoT infrastructure that can be used for both edu
 
 | Component              | Possible technologies / libraries |
 |------------------------|-----------------------------------|
-| Microcontroller / MCU  |                                   |
+| Microcontroller / MCU  | ESP-32                            |
 | Air sensors            |                                   |
 | Communication protocol |                                   |
 | Backend / server       |                                   |
