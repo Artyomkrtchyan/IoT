@@ -25,6 +25,6 @@ The goal is to design a working IoT infrastructure that can be used for both edu
 | Microcontroller / MCU  | ESP-32                            |
 | Air sensors            | DHT22 BME280 SPS30 SCD30 SGP40    |
 | Communication protocol | I2C UART SPI                      |
-| Backend / server       |                                   |
+| Backend / server       | Amazon Web Services               |
 | Frontend               |  HTML CSS JS                      |
 | Hosting / deployment   |                                   |
