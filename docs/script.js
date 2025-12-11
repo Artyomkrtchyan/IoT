@@ -1,291 +1,598 @@
-// ===================================
-// Mobile Navigation Toggle
-// ===================================
-const navToggle = document.getElementById('navToggle');
-const navMenu = document.getElementById('navMenu');
-const navLinks = document.querySelectorAll('.nav-link');
+// ============================================
+// Personal Portfolio & IoT Data Dashboard
+// Author: Artyom Mkrtchyan
+// ============================================
 
-if (navToggle) {
-    navToggle.addEventListener('click', () => {
-        navToggle.classList.toggle('active');
-        navMenu.classList.toggle('active');
-    });
+// ============================================
+// Global Variables
+// ============================================
+let sensorData = [];
+let charts = {};
+let currentMetric = 'temperature';
+let currentTimeRange = 'all';
 
-    // Close menu when clicking on a link
-    navLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            navToggle.classList.remove('active');
-            navMenu.classList.remove('active');
-        });
-    });
-}
-
-// ===================================
-// Scroll Animations (Intersection Observer)
-// ===================================
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
+// Metric configurations
+const metricConfig = {
+  temperature: { label: 'Temperature', unit: '°C', color: '#f59e0b', icon: 'thermometer' },
+  humidity: { label: 'Humidity', unit: '%', color: '#3b82f6', icon: 'droplets' },
+  pressure: { label: 'Pressure', unit: 'hPa', color: '#8b5cf6', icon: 'gauge' },
+  co2ppm: { label: 'CO2', unit: 'ppm', color: '#ef4444', icon: 'wind' },
+  pm1_0: { label: 'PM1.0', unit: 'µg/m³', color: '#10b981', icon: 'cloud' },
+  pm2_5: { label: 'PM2.5', unit: 'µg/m³', color: '#06b6d4', icon: 'cloud' },
+  pm4_0: { label: 'PM4.0', unit: 'µg/m³', color: '#84cc16', icon: 'cloud' },
+  pm10: { label: 'PM10', unit: 'µg/m³', color: '#f97316', icon: 'cloud' },
+  altitude: { label: 'Altitude', unit: 'm', color: '#6366f1', icon: 'mountain' }
 };
 
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.classList.add('visible');
-            // Optional: unobserve after animation to improve performance
-            // observer.unobserve(entry.target);
-        }
-    });
-}, observerOptions);
+// ============================================
+// DOM Ready
+// ============================================
+document.addEventListener('DOMContentLoaded', () => {
+  initNavigation();
+  initScrollAnimations();
+  initContactForm();
+  loadSensorData();
+  lucide.createIcons();
+});
 
-// Observe all fade-in elements
-const fadeElements = document.querySelectorAll('.fade-in');
-fadeElements.forEach(el => observer.observe(el));
+// ============================================
+// Navigation
+// ============================================
+function initNavigation() {
+  const navbar = document.getElementById('navbar');
+  const navToggle = document.getElementById('navToggle');
+  const navMenu = document.getElementById('navMenu');
+  const navLinks = document.querySelectorAll('.nav-link');
 
-// ===================================
-// Contact Form Validation
-// ===================================
-const contactForm = document.getElementById('contactForm');
-
-if (contactForm) {
-    contactForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        // Clear previous errors
-        clearErrors();
-        
-        // Get form values
-        const name = document.getElementById('name').value.trim();
-        const email = document.getElementById('email').value.trim();
-        const message = document.getElementById('message').value.trim();
-        
-        let isValid = true;
-        
-        // Validate name
-        if (name === '') {
-            showError('nameError', 'Please enter your name');
-            isValid = false;
-        } else if (name.length < 2) {
-            showError('nameError', 'Name must be at least 2 characters');
-            isValid = false;
-        }
-        
-        // Validate email
-        if (email === '') {
-            showError('emailError', 'Please enter your email');
-            isValid = false;
-        } else if (!isValidEmail(email)) {
-            showError('emailError', 'Please enter a valid email address');
-            isValid = false;
-        }
-        
-        // Validate message
-        if (message === '') {
-            showError('messageError', 'Please enter a message');
-            isValid = false;
-        } else if (message.length < 10) {
-            showError('messageError', 'Message must be at least 10 characters');
-            isValid = false;
-        }
-        
-        // If form is valid, show success message
-        if (isValid) {
-            // TODO: Replace with actual form submission logic
-            // Example: send to backend API or email service
-            
-            showSuccessMessage();
-            contactForm.reset();
-        }
-    });
-}
-
-function showError(elementId, message) {
-    const errorElement = document.getElementById(elementId);
-    if (errorElement) {
-        errorElement.textContent = message;
-        errorElement.style.display = 'block';
+  // Scroll effect for navbar
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 50) {
+      navbar.classList.add('scrolled');
+    } else {
+      navbar.classList.remove('scrolled');
     }
+  });
+
+  // Mobile menu toggle
+  navToggle.addEventListener('click', () => {
+    navToggle.classList.toggle('active');
+    navMenu.classList.toggle('active');
+  });
+
+  // Close menu on link click
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      navToggle.classList.remove('active');
+      navMenu.classList.remove('active');
+    });
+  });
+
+  // Smooth scroll for all anchor links
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.querySelector(anchor.getAttribute('href'));
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+  });
 }
 
-function clearErrors() {
-    const errorElements = document.querySelectorAll('.error-message');
-    errorElements.forEach(el => {
-        el.textContent = '';
-        el.style.display = 'none';
+// ============================================
+// Scroll Animations
+// ============================================
+function initScrollAnimations() {
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px'
+  };
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('animate-in');
+        observer.unobserve(entry.target);
+      }
     });
+  }, observerOptions);
+
+  // Observe sections
+  document.querySelectorAll('.section').forEach(section => {
+    section.style.opacity = '0';
+    section.style.transform = 'translateY(20px)';
+    observer.observe(section);
+  });
+}
+
+// ============================================
+// Contact Form
+// ============================================
+function initContactForm() {
+  const form = document.getElementById('contactForm');
+  
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const message = document.getElementById('message').value.trim();
+    
+    // Simple validation
+    if (!name || !email || !message) {
+      showToast('Please fill in all fields', 'error');
+      return;
+    }
+    
+    if (!isValidEmail(email)) {
+      showToast('Please enter a valid email', 'error');
+      return;
+    }
+    
+    // Simulate form submission
+    showToast('Message sent successfully!', 'success');
+    form.reset();
+  });
 }
 
 function isValidEmail(email) {
-    // Basic email regex validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function showSuccessMessage() {
-    // Create success message element
-    const successDiv = document.createElement('div');
-    successDiv.className = 'success-message';
-    successDiv.innerHTML = `
-        <p><strong>✓ Success!</strong> Your message has been sent. I'll get back to you soon!</p>
-    `;
-    
-    // Add styles for success message
-    successDiv.style.cssText = `
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-        padding: 1rem;
-        border-radius: 8px;
-        margin-top: 1rem;
-        animation: fadeInUp 0.5s ease;
-    `;
-    
-    // Insert after form
-    contactForm.parentNode.insertBefore(successDiv, contactForm.nextSibling);
-    
-    // Remove message after 5 seconds
-    setTimeout(() => {
-        successDiv.style.opacity = '0';
-        successDiv.style.transition = 'opacity 0.5s ease';
-        setTimeout(() => successDiv.remove(), 500);
-    }, 5000);
-    
-    // TODO: Replace this with actual form submission
-    console.log('Form submitted successfully!');
-    console.log('Name:', document.getElementById('name').value);
-    console.log('Email:', document.getElementById('email').value);
-    console.log('Message:', document.getElementById('message').value);
+function showToast(message, type = 'success') {
+  // Create toast container if not exists
+  let container = document.querySelector('.toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
 }
 
-// ===================================
-// Smooth Scrolling
-// ===================================
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        const href = this.getAttribute('href');
-        
-        // Only prevent default for hash links (not just "#")
-        if (href !== '#' && href.length > 1) {
-            e.preventDefault();
-            const target = document.querySelector(href);
-            
-            if (target) {
-                const offsetTop = target.offsetTop - 80; // Account for fixed nav
-                
-                window.scrollTo({
-                    top: offsetTop,
-                    behavior: 'smooth'
-                });
+// ============================================
+// Data Loading & Processing
+// ============================================
+async function loadSensorData() {
+  try {
+    // Try to fetch from data.json
+    const response = await fetch('data.json');
+    if (!response.ok) throw new Error('Failed to load data');
+    
+    sensorData = await response.json();
+    console.log(`Loaded ${sensorData.length} data points`);
+    
+    // Initialize dashboard
+    initDashboard();
+  } catch (error) {
+    console.error('Error loading sensor data:', error);
+    showToast('Error loading sensor data', 'error');
+  }
+}
+
+function getFilteredData() {
+  if (currentTimeRange === 'all') {
+    return sensorData;
+  }
+  const limit = parseInt(currentTimeRange);
+  return sensorData.slice(-limit);
+}
+
+function calculateStats(data, metric) {
+  const values = data.map(d => d[metric]).filter(v => v !== null && v !== undefined);
+  if (values.length === 0) return { avg: 0, min: 0, max: 0, current: 0 };
+  
+  return {
+    avg: values.reduce((a, b) => a + b, 0) / values.length,
+    min: Math.min(...values),
+    max: Math.max(...values),
+    current: values[values.length - 1]
+  };
+}
+
+// ============================================
+// Dashboard Initialization
+// ============================================
+function initDashboard() {
+  // Setup controls
+  const metricSelect = document.getElementById('metricSelect');
+  const timeRange = document.getElementById('timeRange');
+  
+  metricSelect.addEventListener('change', (e) => {
+    currentMetric = e.target.value;
+    updateDashboard();
+  });
+  
+  timeRange.addEventListener('change', (e) => {
+    currentTimeRange = e.target.value;
+    updateDashboard();
+  });
+  
+  // Setup stat card clicks
+  document.querySelectorAll('.dashboard-stat').forEach(card => {
+    card.addEventListener('click', () => {
+      const metric = card.dataset.metric;
+      if (metric && metricConfig[metric]) {
+        metricSelect.value = metric;
+        currentMetric = metric;
+        updateDashboard();
+      }
+    });
+  });
+  
+  // Initialize charts
+  initCharts();
+  updateDashboard();
+}
+
+// ============================================
+// Chart Initialization
+// ============================================
+function initCharts() {
+  // Chart.js global defaults
+  Chart.defaults.color = '#a1a1aa';
+  Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.08)';
+  Chart.defaults.font.family = "'Inter', sans-serif";
+  
+  // Line Chart - Main metric over time
+  const lineCtx = document.getElementById('lineChart').getContext('2d');
+  charts.line = new Chart(lineCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Temperature',
+        data: [],
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a24',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          padding: 12,
+          titleFont: { weight: '600' },
+          callbacks: {
+            label: (ctx) => {
+              const config = metricConfig[currentMetric];
+              return `${config.label}: ${ctx.parsed.y.toFixed(2)} ${config.unit}`;
             }
+          }
         }
-    });
-});
-
-// ===================================
-// Update Copyright Year
-// ===================================
-const yearElement = document.getElementById('year');
-if (yearElement) {
-    yearElement.textContent = new Date().getFullYear();
-}
-
-// ===================================
-// Navbar Background on Scroll
-// ===================================
-const nav = document.getElementById('nav');
-if (nav) {
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 50) {
-            nav.style.backgroundColor = 'rgba(255, 255, 255, 1)';
-            nav.style.boxShadow = '0 2px 20px rgba(0, 0, 0, 0.1)';
-        } else {
-            nav.style.backgroundColor = 'rgba(255, 255, 255, 0.98)';
-            nav.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.05)';
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 8 }
+        },
+        y: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' }
         }
-    });
-}
-
-// ===================================
-// Active Navigation Link Highlight
-// ===================================
-const sections = document.querySelectorAll('section[id]');
-
-function highlightNavigation() {
-    const scrollY = window.pageYOffset;
-    
-    sections.forEach(section => {
-        const sectionHeight = section.offsetHeight;
-        const sectionTop = section.offsetTop - 100;
-        const sectionId = section.getAttribute('id');
-        const navLink = document.querySelector(`.nav-link[href="#${sectionId}"]`);
-        
-        if (scrollY > sectionTop && scrollY <= sectionTop + sectionHeight) {
-            if (navLink) {
-                navLinks.forEach(link => link.classList.remove('active'));
-                navLink.classList.add('active');
-            }
-        }
-    });
-}
-
-window.addEventListener('scroll', highlightNavigation);
-
-// ===================================
-// Print CV Function Enhancement
-// ===================================
-// Automatically format for print when download button is clicked
-const printButtons = document.querySelectorAll('.btn-download');
-printButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        // Add slight delay to ensure proper rendering
-        setTimeout(() => {
-            window.print();
-        }, 100);
-    });
-});
-
-// ===================================
-// Keyboard Navigation Accessibility
-// ===================================
-document.addEventListener('keydown', (e) => {
-    // ESC key closes mobile menu
-    if (e.key === 'Escape' && navMenu && navMenu.classList.contains('active')) {
-        navToggle.classList.remove('active');
-        navMenu.classList.remove('active');
+      },
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      }
     }
-});
-
-// ===================================
-// Performance: Lazy Load Images
-// ===================================
-if ('IntersectionObserver' in window) {
-    const imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                    imageObserver.unobserve(img);
-                }
-            }
-        });
-    });
-
-    // Observe images with data-src attribute
-    const lazyImages = document.querySelectorAll('img[data-src]');
-    lazyImages.forEach(img => imageObserver.observe(img));
+  });
+  
+  // Bar Chart - Average metrics comparison
+  const barCtx = document.getElementById('barChart').getContext('2d');
+  charts.bar = new Chart(barCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Temperature', 'Humidity', 'CO2', 'PM2.5'],
+      datasets: [{
+        label: 'Normalized Average',
+        data: [],
+        backgroundColor: [
+          'rgba(245, 158, 11, 0.8)',
+          'rgba(59, 130, 246, 0.8)',
+          'rgba(239, 68, 68, 0.8)',
+          'rgba(6, 182, 212, 0.8)'
+        ],
+        borderRadius: 8,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a24',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          padding: 12
+        }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          beginAtZero: true,
+          max: 100
+        }
+      },
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      }
+    }
+  });
+  
+  // Doughnut Chart - PM Distribution
+  const doughnutCtx = document.getElementById('doughnutChart').getContext('2d');
+  charts.doughnut = new Chart(doughnutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['PM1.0', 'PM2.5', 'PM4.0', 'PM10'],
+      datasets: [{
+        data: [],
+        backgroundColor: [
+          'rgba(16, 185, 129, 0.8)',
+          'rgba(6, 182, 212, 0.8)',
+          'rgba(132, 204, 22, 0.8)',
+          'rgba(249, 115, 22, 0.8)'
+        ],
+        borderColor: '#1a1a24',
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 20,
+            usePointStyle: true,
+            pointStyle: 'circle'
+          }
+        },
+        tooltip: {
+          backgroundColor: '#1a1a24',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${ctx.parsed.toFixed(2)} µg/m³`
+          }
+        }
+      },
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      }
+    }
+  });
+  
+  // Multi-line Chart - Multiple metrics
+  const multiCtx = document.getElementById('multiLineChart').getContext('2d');
+  charts.multi = new Chart(multiCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Temperature',
+          data: [],
+          borderColor: '#f59e0b',
+          backgroundColor: 'transparent',
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 2
+        },
+        {
+          label: 'Humidity',
+          data: [],
+          borderColor: '#3b82f6',
+          backgroundColor: 'transparent',
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 2
+        },
+        {
+          label: 'CO2 (scaled)',
+          data: [],
+          borderColor: '#ef4444',
+          backgroundColor: 'transparent',
+          tension: 0.4,
+          pointRadius: 0,
+          borderWidth: 2
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a24',
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          borderWidth: 1,
+          padding: 12
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 8 }
+        },
+        y: {
+          grid: { color: 'rgba(255, 255, 255, 0.05)' },
+          min: 0,
+          max: 100
+        }
+      },
+      animation: {
+        duration: 800,
+        easing: 'easeOutQuart'
+      }
+    }
+  });
+  
+  // Setup multi-chart legend
+  setupMultiChartLegend();
 }
 
-// ===================================
-// Initialize on DOM Content Loaded
-// ===================================
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Website loaded successfully!');
-    
-    // Add loaded class to body for any CSS transitions
-    document.body.classList.add('loaded');
-    
-    // Initial highlight of navigation
-    highlightNavigation();
-});
+function setupMultiChartLegend() {
+  const legendContainer = document.getElementById('multiChartLegend');
+  const datasets = charts.multi.data.datasets;
+  
+  legendContainer.innerHTML = datasets.map((ds, i) => `
+    <div class="legend-item" data-index="${i}">
+      <span class="legend-color" style="background: ${ds.borderColor}"></span>
+      <span>${ds.label}</span>
+    </div>
+  `).join('');
+  
+  // Add click handlers for legend items
+  legendContainer.querySelectorAll('.legend-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const index = parseInt(item.dataset.index);
+      const dataset = charts.multi.data.datasets[index];
+      dataset.hidden = !dataset.hidden;
+      item.classList.toggle('hidden', dataset.hidden);
+      charts.multi.update();
+    });
+  });
+}
+
+// ============================================
+// Dashboard Update
+// ============================================
+function updateDashboard() {
+  const data = getFilteredData();
+  if (data.length === 0) return;
+  
+  updateStatsCards(data);
+  updateLineChart(data);
+  updateBarChart(data);
+  updateDoughnutChart(data);
+  updateMultiLineChart(data);
+}
+
+function updateStatsCards(data) {
+  const tempStats = calculateStats(data, 'temperature');
+  const humidityStats = calculateStats(data, 'humidity');
+  const co2Stats = calculateStats(data, 'co2ppm');
+  const pm25Stats = calculateStats(data, 'pm2_5');
+  
+  document.getElementById('statTemp').textContent = `${tempStats.current.toFixed(1)}°C`;
+  document.getElementById('statHumidity').textContent = `${humidityStats.current.toFixed(1)}%`;
+  document.getElementById('statCO2').textContent = `${co2Stats.current.toFixed(0)} ppm`;
+  document.getElementById('statPM25').textContent = `${pm25Stats.current.toFixed(1)} µg/m³`;
+  
+  // Highlight active metric card
+  document.querySelectorAll('.dashboard-stat').forEach(card => {
+    card.classList.toggle('active', card.dataset.metric === currentMetric);
+  });
+}
+
+function updateLineChart(data) {
+  const config = metricConfig[currentMetric];
+  const labels = data.map((d, i) => {
+    const date = new Date(d.timestamp);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  });
+  const values = data.map(d => d[currentMetric]);
+  
+  // Update chart title
+  document.getElementById('lineChartTitle').textContent = `${config.label} Over Time`;
+  
+  // Update chart data
+  charts.line.data.labels = labels;
+  charts.line.data.datasets[0].label = config.label;
+  charts.line.data.datasets[0].data = values;
+  charts.line.data.datasets[0].borderColor = config.color;
+  charts.line.data.datasets[0].backgroundColor = `${config.color}20`;
+  charts.line.update('active');
+}
+
+function updateBarChart(data) {
+  // Normalize values to 0-100 scale for comparison
+  const metrics = ['temperature', 'humidity', 'co2ppm', 'pm2_5'];
+  const maxValues = {
+    temperature: 50,    // Max expected temp
+    humidity: 100,      // Percentage
+    co2ppm: 2000,       // Max CO2
+    pm2_5: 100          // Max PM2.5
+  };
+  
+  const normalizedValues = metrics.map(metric => {
+    const stats = calculateStats(data, metric);
+    return (stats.avg / maxValues[metric]) * 100;
+  });
+  
+  charts.bar.data.datasets[0].data = normalizedValues;
+  charts.bar.update('active');
+}
+
+function updateDoughnutChart(data) {
+  const pm1 = calculateStats(data, 'pm1_0').avg;
+  const pm25 = calculateStats(data, 'pm2_5').avg;
+  const pm4 = calculateStats(data, 'pm4_0').avg;
+  const pm10 = calculateStats(data, 'pm10').avg;
+  
+  charts.doughnut.data.datasets[0].data = [pm1, pm25, pm4, pm10];
+  charts.doughnut.update('active');
+}
+
+function updateMultiLineChart(data) {
+  const labels = data.map((d, i) => {
+    const date = new Date(d.timestamp);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  });
+  
+  // Normalize all values to 0-100 scale
+  const tempMax = Math.max(...data.map(d => d.temperature));
+  const tempMin = Math.min(...data.map(d => d.temperature));
+  const co2Max = Math.max(...data.map(d => d.co2ppm));
+  const co2Min = Math.min(...data.map(d => d.co2ppm));
+  
+  const normalizedTemp = data.map(d => 
+    ((d.temperature - tempMin) / (tempMax - tempMin || 1)) * 100
+  );
+  const normalizedHumidity = data.map(d => d.humidity); // Already 0-100
+  const normalizedCO2 = data.map(d => 
+    ((d.co2ppm - co2Min) / (co2Max - co2Min || 1)) * 100
+  );
+  
+  charts.multi.data.labels = labels;
+  charts.multi.data.datasets[0].data = normalizedTemp;
+  charts.multi.data.datasets[1].data = normalizedHumidity;
+  charts.multi.data.datasets[2].data = normalizedCO2;
+  charts.multi.update('active');
+}
